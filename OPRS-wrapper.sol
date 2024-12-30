@@ -8,23 +8,37 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
+/**
+ * @title SecureTokenWrapper
+ * @notice A secure wrapper for ERC20 tokens with comprehensive security measures
+ * @dev Implements EIP-2612 permit, flash loan protection, and extensive security validations
+ */
+contract SecureTokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable underlyingToken;
     uint8 private immutable underlyingDecimals;
     uint256 private immutable scalingFactor;
     
-    // Flash loan protection parameters
+    // Security parameters
     uint256 public constant WINDOW_SIZE = 1 hours;
     uint256 public maxWrapPerWindow;
     uint256 public maxUnwrapPerWindow;
     uint256 public constant MAX_UNDERLYING_BALANCE = type(uint96).max;
+    uint256 private constant MAX_SAFE_AMOUNT = type(uint96).max / (10 ** 18);
     
-    // Volume tracking
-    mapping(uint256 => uint256) public wrapVolume;
-    mapping(uint256 => uint256) public unwrapVolume;
-
+    // Sliding window implementation
+    struct Operation {
+        uint256 amount;
+        uint256 timestamp;
+    }
+    
+    mapping(address => Operation[]) private wrapOperations;
+    mapping(address => Operation[]) private unwrapOperations;
+    
+    // Emergency controls
+    bool public isEmergencyMode;
+    
     constructor(
         address _underlyingToken,
         string memory _name,
@@ -35,8 +49,12 @@ contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
         require(_underlyingToken != address(0), "TokenWrapper: Zero address");
         require(bytes(_name).length > 0, "TokenWrapper: Empty name");
         require(bytes(_symbol).length > 0, "TokenWrapper: Empty symbol");
-        require(_maxWrapPerWindow > 0, "TokenWrapper: Invalid wrap limit");
-        require(_maxUnwrapPerWindow > 0, "TokenWrapper: Invalid unwrap limit");
+        require(_maxWrapPerWindow > 0 && _maxWrapPerWindow <= MAX_SAFE_AMOUNT, "TokenWrapper: Invalid wrap limit");
+        require(_maxUnwrapPerWindow > 0 && _maxUnwrapPerWindow <= MAX_SAFE_AMOUNT, "TokenWrapper: Invalid unwrap limit");
+        
+        // Validate token interface and behavior
+        require(_underlyingToken.code.length > 0, "TokenWrapper: Not a contract");
+        _validateTokenImplementation(_underlyingToken);
         
         underlyingToken = IERC20(_underlyingToken);
         
@@ -53,68 +71,109 @@ contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
         maxUnwrapPerWindow = _maxUnwrapPerWindow;
     }
 
-    // Original rate limiting functions remain the same
-    function getCurrentWindow() public view returns (uint256) {
-        return block.timestamp / WINDOW_SIZE;
+    // Security validation functions
+    function _validateTokenImplementation(address token) private view {
+        // Basic ERC20 interface validation
+        try ERC20(token).totalSupply() returns (uint256) {} catch {
+            revert("TokenWrapper: Invalid ERC20 implementation");
+        }
+        try ERC20(token).balanceOf(address(this)) returns (uint256) {} catch {
+            revert("TokenWrapper: Invalid ERC20 implementation");
+        }
     }
 
-    function getWindowVolume(uint256 window, bool isWrap) public view returns (uint256) {
-        return isWrap ? wrapVolume[window] : unwrapVolume[window];
+    function _validateAmount(uint256 amount) internal pure {
+        require(amount <= MAX_SAFE_AMOUNT, "TokenWrapper: Amount too large");
+        require(amount > 0, "TokenWrapper: Zero amount");
     }
 
-    function _checkAndUpdateRateLimit(uint256 amount, bool isWrap) internal {
-        uint256 currentWindow = getCurrentWindow();
-        uint256 currentVolume = getWindowVolume(currentWindow, isWrap);
-        uint256 maxAmount = isWrap ? maxWrapPerWindow : maxUnwrapPerWindow;
+    function _validateTokenTransfer(
+        uint256 beforeBalance,
+        uint256 afterBalance,
+        uint256 expectedAmount,
+        bool isIncoming
+    ) internal pure {
+        uint256 actualAmount = isIncoming ? 
+            afterBalance - beforeBalance : 
+            beforeBalance - afterBalance;
+            
+        require(
+            actualAmount == expectedAmount,
+            "TokenWrapper: Token behavior mismatch"
+        );
+    }
+
+    // Sliding window implementation
+    function _cleanupOldOperations(Operation[] storage operations) private {
+        uint256 cutoffTime = block.timestamp - WINDOW_SIZE;
+        uint256 i = 0;
+        while (i < operations.length && operations[i].timestamp < cutoffTime) {
+            i++;
+        }
+        if (i > 0) {
+            uint256 j = 0;
+            while (i < operations.length) {
+                operations[j] = operations[i];
+                j++;
+                i++;
+            }
+            while (operations.length > j) {
+                operations.pop();
+            }
+        }
+    }
+
+    function _getSlidingWindowVolume(Operation[] storage operations) private view returns (uint256) {
+        uint256 volume = 0;
+        uint256 cutoffTime = block.timestamp - WINDOW_SIZE;
         
+        for (uint256 i = 0; i < operations.length; i++) {
+            if (operations[i].timestamp >= cutoffTime) {
+                volume += operations[i].amount;
+            }
+        }
+        
+        return volume;
+    }
+
+    function _updateSlidingWindow(
+        Operation[] storage operations,
+        uint256 amount,
+        uint256 maxAmount
+    ) private {
+        _cleanupOldOperations(operations);
+        
+        uint256 currentVolume = _getSlidingWindowVolume(operations);
         require(
             currentVolume + amount <= maxAmount,
             "TokenWrapper: Rate limit exceeded"
         );
         
-        if(isWrap) {
-            wrapVolume[currentWindow] += amount;
-        } else {
-            unwrapVolume[currentWindow] += amount;
-        }
+        operations.push(Operation(amount, block.timestamp));
     }
 
-    // New permit wrap function
-    function wrapWithPermit(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external nonReentrant {
-        require(amount > 0, "TokenWrapper: Zero amount");
-        require(amount <= MAX_UNDERLYING_BALANCE, "TokenWrapper: Amount exceeds maximum");
+    // Core functions with security measures
+    function wrap(uint256 amount) external nonReentrant {
+        require(!isEmergencyMode, "TokenWrapper: Emergency mode active");
+        _validateAmount(amount);
         
-        // Execute permit on underlying token if it supports EIP-2612
-        if (address(underlyingToken).code.length > 0) {
-            try IERC20Permit(address(underlyingToken)).permit(
-                msg.sender,
-                address(this),
-                amount,
-                deadline,
-                v,
-                r,
-                s
-            ) {} catch {
-                // Silently fail if permit is not supported
-            }
-        }
-
-        // Proceed with normal wrap
-        _checkAndUpdateRateLimit(amount, true);
+        _updateSlidingWindow(
+            wrapOperations[msg.sender],
+            amount,
+            maxWrapPerWindow
+        );
 
         uint256 initialBalance = balanceOf(msg.sender);
         uint256 initialUnderlyingBalance = underlyingToken.balanceOf(address(this));
         
         underlyingToken.safeTransferFrom(msg.sender, address(this), amount);
         
-        uint256 receivedAmount = underlyingToken.balanceOf(address(this)) - initialUnderlyingBalance;
-        require(receivedAmount == amount, "TokenWrapper: Transfer amount mismatch");
+        _validateTokenTransfer(
+            initialUnderlyingBalance,
+            underlyingToken.balanceOf(address(this)),
+            amount,
+            true
+        );
         
         uint256 wrappedAmount = amount * scalingFactor;
         _mint(msg.sender, wrappedAmount);
@@ -130,21 +189,98 @@ contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
         );
     }
 
-    // Original wrap function remains the same
-    function wrap(uint256 amount) external nonReentrant {
-        // ... existing wrap implementation ...
+    function wrapWithPermit(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external nonReentrant {
+        require(!isEmergencyMode, "TokenWrapper: Emergency mode active");
+        _validateAmount(amount);
+        
+        if (address(underlyingToken).code.length > 0) {
+            try IERC20Permit(address(underlyingToken)).permit(
+                msg.sender,
+                address(this),
+                amount,
+                deadline,
+                v,
+                r,
+                s
+            ) {} catch {}
+        }
+
+        wrap(amount);
     }
 
-    // Original unwrap function remains the same
     function unwrap(uint256 amount) external nonReentrant {
-        // ... existing unwrap implementation ...
+        require(!isEmergencyMode, "TokenWrapper: Emergency mode active");
+        _validateAmount(amount);
+        require(amount % scalingFactor == 0, "TokenWrapper: Invalid amount");
+        
+        uint256 underlyingAmount = amount / scalingFactor;
+        _updateSlidingWindow(
+            unwrapOperations[msg.sender],
+            underlyingAmount,
+            maxUnwrapPerWindow
+        );
+
+        uint256 initialBalance = balanceOf(msg.sender);
+        uint256 initialUnderlyingBalance = underlyingToken.balanceOf(address(this));
+        
+        require(
+            underlyingAmount <= underlyingToken.balanceOf(address(this)),
+            "TokenWrapper: Insufficient underlying balance"
+        );
+        
+        _burn(msg.sender, amount);
+        
+        underlyingToken.safeTransfer(msg.sender, underlyingAmount);
+        
+        _validateTokenTransfer(
+            initialUnderlyingBalance,
+            underlyingToken.balanceOf(address(this)),
+            underlyingAmount,
+            false
+        );
+        
+        emit Unwrapped(
+            msg.sender,
+            amount,
+            underlyingAmount,
+            initialBalance,
+            balanceOf(msg.sender),
+            initialUnderlyingBalance,
+            underlyingToken.balanceOf(address(this))
+        );
     }
 
-    // Original helper functions remain the same
-    function setRateLimits(uint256 _maxWrapPerWindow, uint256 _maxUnwrapPerWindow) external onlyOwner {
-        // ... existing implementation ...
+    // Emergency functions
+    function setEmergencyMode(bool _isEmergencyMode) external onlyOwner {
+        isEmergencyMode = _isEmergencyMode;
+        emit EmergencyModeSet(_isEmergencyMode);
     }
 
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        require(isEmergencyMode, "TokenWrapper: Not in emergency mode");
+        IERC20(token).safeTransfer(owner(), amount);
+        emit EmergencyWithdraw(token, amount);
+    }
+
+    // Admin functions
+    function setRateLimits(
+        uint256 _maxWrapPerWindow,
+        uint256 _maxUnwrapPerWindow
+    ) external onlyOwner {
+        require(_maxWrapPerWindow > 0 && _maxWrapPerWindow <= MAX_SAFE_AMOUNT, "TokenWrapper: Invalid wrap limit");
+        require(_maxUnwrapPerWindow > 0 && _maxUnwrapPerWindow <= MAX_SAFE_AMOUNT, "TokenWrapper: Invalid unwrap limit");
+        maxWrapPerWindow = _maxWrapPerWindow;
+        maxUnwrapPerWindow = _maxUnwrapPerWindow;
+        emit RateLimitsUpdated(_maxWrapPerWindow, _maxUnwrapPerWindow);
+    }
+
+    // View functions
     function getUnderlyingAmount(uint256 wrappedAmount) public view returns (uint256) {
         return wrappedAmount / scalingFactor;
     }
@@ -157,7 +293,12 @@ contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
         return underlyingDecimals;
     }
 
-    // Events remain the same
+    function getCurrentWindowVolume(address user, bool isWrap) external view returns (uint256) {
+        Operation[] storage operations = isWrap ? wrapOperations[user] : unwrapOperations[user];
+        return _getSlidingWindowVolume(operations);
+    }
+
+    // Events
     event Wrapped(
         address indexed user,
         uint256 underlyingAmount,
@@ -179,4 +320,6 @@ contract TokenWrapper is ERC20Permit, Ownable, ReentrancyGuard {
     );
 
     event RateLimitsUpdated(uint256 maxWrapPerWindow, uint256 maxUnwrapPerWindow);
+    event EmergencyModeSet(bool isEmergencyMode);
+    event EmergencyWithdraw(address indexed token, uint256 amount);
 }
