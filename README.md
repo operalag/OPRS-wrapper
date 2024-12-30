@@ -1,128 +1,118 @@
-Wrapper for OPRS Token on BSC Chain https://bscscan.com/address/0x3afc7c9a7d1ac2e78907dffb840b5a879ba17af7
+A comprehensive ERC20 token wrapper with extensive security measures and protections against various attack vectors.
+Security Features
+1. Flash Loan Attack Prevention
 
------------------------------------------------------
------------------------------------------------------
-
-WORK IN PROGRESS NOT MITIGATED RISK
-
-----------------------------------------------------
------------------------------------------------------
-
-NOT YET MITIGATED RISKS:
-
-
-No rate limiting
-No maximum transaction size per block
-Could be used to manipulate connected DEX prices
-
-
-Token Compatibility:
-
-No specific handling for fee-on-transfer tokens
-No handling for rebasing tokens
-No blacklist for known malicious tokens
-
-
-Emergency Controls:
-
-No pause mechanism
-No emergency withdrawal function
-No way to handle stuck tokens
-
-
-Approval Front-Running:
-
-No EIP-2612 permit support
-Standard ERC20 approvals could be front-run
-
-
-Contract Upgrade Path:
-
-No upgrade mechanism if bugs are found
-Immutable variables can't be changed if needed
-
-
-Gas Optimization:
-
-No minimum wrap/unwrap amounts to prevent dust
-No gas limit checks for token operations
-
-
-Token Standard Compliance:
-
-Limited validation of underlying token implementation
-No checks for return values consistency
-
------------------------------------------------------
------------------------------------------------------
-
-ALREADY MITIGATED RISKS:
------------------------------------------------------
------------------------------------------------------
-
-Reentrancy:
------------------------------------------------------
-Uses ReentrancyGuard modifier
-Follows checks-effects-interactions pattern
-Burns tokens before transfer in unwrap
-
-
-Token Transfer Safety:
------------------------------------------------------
-Uses SafeERC20 library
-Verifies actual transfer amounts received
-Checks balances before and after transfers
-
-
-Input Validation:
------------------------------------------------------
-Zero address checks
-Non-empty name/symbol validation
-Amount > 0 checks
-Maximum balance limit
-Token decimals validation
-
-
-Decimal Precision:
------------------------------------------------------
-Validates underlying decimals ≤ 18
-Checks for valid scaling in unwrap (amount % scalingFactor == 0)
-Immutable scaling factor prevents manipulation
-
-
-Balance Tracking:
------------------------------------------------------
-Detailed event logging with before/after balances
-Balance verification for both tokens
-Checks for sufficient balances before operations
-
-Time-Based Rate Limiting:
------------------------------------------------------
+Implements sliding window rate limiting
+Per-user tracking of wrap/unwrap operations
 Configurable maximum amounts per time window
-Separate limits for wrap and unwrap operations
-Rolling windows to prevent edge-of-window abuse
+Automatic cleanup of old operations
+
+2. Front-Running Protection
+
+Implements EIP-2612 permit functionality
+Single-transaction approval and wrap
+Supports both permit and non-permit tokens
+Deadline-based transaction validity
+
+3. Token Behavior Validation
+
+Validates token interface compliance
+Checks for fee-on-transfer tokens
+Verifies actual transfer amounts
+Guards against rebasing tokens
+
+4. Decimal Precision Protection
+
+Safe scaling between decimal places
+Maximum amount validation
+Prevention of overflow scenarios
+Precise decimal calculations
+
+5. Emergency Controls
+
+Emergency mode for contract pause
+Controlled withdrawal mechanism
+Owner-only emergency functions
+Safe token recovery
+
+6. Transaction Safety
+
+ReentrancyGuard implementation
+Checks-Effects-Interactions pattern
+SafeERC20 usage
+Comprehensive input validation
+
+7. Volume Controls
+
+Maximum transaction limits
+Rolling window volume tracking
+Per-user operation limits
+Adjustable rate limits
+
+8. Event Monitoring
+
+Detailed event logging
+Balance tracking before/after operations
+Rate limit updates logging
+Emergency action logging
+
+Security Measures by Category
+Smart Contract Best Practices
+
+Immutable state variables where possible
+Precise error messages
+No delegatecall usage
+No assembly code
+Explicit visibility modifiers
+
+Mathematical Safety
+
+SafeMath via Solidity 0.8+
+Decimal scaling protection
+Maximum value constraints
+Division before multiplication
+
+Access Control
+
+Ownable implementation
+Function-level access control
+Emergency mode restrictions
+Rate limit enforcement
+
+State Management
+
+Atomic state updates
+Validated state transitions
+Balance verification
+Operation tracking
+
+Risk Prevention Summary
+
+Flash Loan Attacks: Prevented through rate limiting and sliding windows
+Front-Running: Mitigated via EIP-2612 permit implementation
+Decimal Manipulation: Protected by safe scaling and amount validation
+Token Behavior: Validated through transfer amount verification
+State Manipulation: Prevented by atomic operations and ReentrancyGuard
+Emergency Scenarios: Handled through emergency mode and owner controls
+
+Additional Security Recommendations
+
+Deployment
+
+Thorough testing with various token types
+Audit before mainnet deployment
+Gradual limit increase
 
 
-Position Size Limits:
------------------------------------------------------
-You can set maxWrapPerWindow based on:
+Monitoring
 
-Average position size in Frankencoin
-Collateral requirements
-Market depth of the underlying token
+Event monitoring system
+Volume tracking
+Rate limit adjustment
 
 
+Integration
 
-Flash loan vulnerability 
------------------------------------------------------
-
-Dynamic Adjustment:
-
-Admin can adjust limits based on:
-
-Market conditions
-Total value locked
-Observed usage patterns
-
-
-
+Safe integration guidelines
+Rate limit considerations
+Emergency procedure documentation
