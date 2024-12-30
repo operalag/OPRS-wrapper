@@ -10,7 +10,6 @@ WORK IN PROGRESS NOT MITIGATED RISK
 
 NOT YET MITIGATED RISKS:
 
-Flash Loan Vulnerability:
 
 No rate limiting
 No maximum transaction size per block
@@ -62,21 +61,21 @@ ALREADY MITIGATED RISKS:
 -----------------------------------------------------
 
 Reentrancy:
-
+-----------------------------------------------------
 Uses ReentrancyGuard modifier
 Follows checks-effects-interactions pattern
 Burns tokens before transfer in unwrap
 
 
 Token Transfer Safety:
-
+-----------------------------------------------------
 Uses SafeERC20 library
 Verifies actual transfer amounts received
 Checks balances before and after transfers
 
 
 Input Validation:
-
+-----------------------------------------------------
 Zero address checks
 Non-empty name/symbol validation
 Amount > 0 checks
@@ -85,17 +84,45 @@ Token decimals validation
 
 
 Decimal Precision:
-
+-----------------------------------------------------
 Validates underlying decimals ≤ 18
 Checks for valid scaling in unwrap (amount % scalingFactor == 0)
 Immutable scaling factor prevents manipulation
 
 
 Balance Tracking:
-
+-----------------------------------------------------
 Detailed event logging with before/after balances
 Balance verification for both tokens
 Checks for sufficient balances before operations
+
+Time-Based Rate Limiting:
+-----------------------------------------------------
+Configurable maximum amounts per time window
+Separate limits for wrap and unwrap operations
+Rolling windows to prevent edge-of-window abuse
+
+
+Position Size Limits:
+-----------------------------------------------------
+You can set maxWrapPerWindow based on:
+
+Average position size in Frankencoin
+Collateral requirements
+Market depth of the underlying token
+
+
+
+Flash loan vulnerability 
+-----------------------------------------------------
+
+Dynamic Adjustment:
+
+Admin can adjust limits based on:
+
+Market conditions
+Total value locked
+Observed usage patterns
 
 
 
