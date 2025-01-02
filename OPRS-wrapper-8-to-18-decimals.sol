@@ -21,6 +21,7 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     uint256 public maxWrapPerTx;
     uint256 public maxUnwrapPerTx;
     uint256 public constant WINDOW_SIZE = 1 hours;
+    uint256 public constant MAX_OPERATIONS = 2;
 
     struct Operation {
         uint256 amount;
@@ -65,8 +66,8 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Updates the maximum transaction limits.
-     * @param _maxWrapPerTx Maximum amount that can be wrapped per transaction.
-     * @param _maxUnwrapPerTx Maximum amount that can be unwrapped per transaction.
+     * @param _maxWrapPerTx Maximum amount of tokens that can be wrapped per transaction.
+     * @param _maxUnwrapPerTx Maximum amount of tokens that can be unwrapped per transaction.
      */
     function updateRateLimits(uint256 _maxWrapPerTx, uint256 _maxUnwrapPerTx) external onlyOwner {
         require(_maxWrapPerTx > 0, "WrappedDenario: Invalid wrap limit");
@@ -82,6 +83,8 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
      * @dev Internal function to clean up outdated operations.
      */
     function _cleanupOldOperations(Operation[] storage operations) private {
+        require(operations.length <= MAX_OPERATIONS, "Too many operations");
+        
         uint256 cutoffTime = block.timestamp - WINDOW_SIZE;
         uint256 i = 0;
         while (i < operations.length && operations[i].timestamp < cutoffTime) {
