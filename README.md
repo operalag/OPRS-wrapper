@@ -6,7 +6,12 @@ ERC20Wrapper Security Audit Report
 
 Overview
 --------------------------------------
-The ERC20Wrapper contract is designed to wrap 0-decimal ERC20 tokens into 18-decimal versions, implementing comprehensive security measures including sliding window rate limiting and transfer validation.
+The ERC20Wrapper contract is designed to wrap 0-decimal and 8-decimal ERC20 tokens into 18-decimal versions, implementing comprehensive security measures including sliding window rate limiting and transfer validation.
+
+8-decimal to 18 decimals was deployed here https://bscscan.com/tx/0xaf55935887309e4e20693e33e5ca5a276e0196d624438d5ecf0cbdfa5b776d93 for the bridged Denario Token https://interchain.axelar.dev/polygon/0xce4D3160705fEBb069617A9AD919753055B56e49  (from https://denario.swiss ) to be used as collateral in the oracle free dollar ecosystem on binance. Mamimal transacations per hour 2, maximal tokens for wrapping per hour 500.
+
+0-decimal to 18 decimal will be deployed for the bridged Operal Equity Token https://invest.operal.solutions https://interchain.axelar.dev/binance/0xeA38b0cD48fA781181FDAa37291e8d6668462261
+
 
 Key Security Features
 --------------------------------------
@@ -47,59 +52,20 @@ Security Analysis
 Protected Against
 
 ✅ Flash loan attacks via sliding window
+
 ✅ Transfer fee tokens through amount verification
+
 ✅ Reentrancy attacks
+
 ✅ Basic overflow/underflow
+
 ✅ Insufficient balance issues
+
 ✅ Rate manipulation
 
-Partial Protection
-
-⚠️ Front-running (standard approvals only)
-⚠️ Gas limits (no array size limit)
-
-Needs Additional Protection
-
-❌ Emergency situations
-❌ Stuck tokens
-❌ Permit functionality
-
-Identified Risks
-Medium Severity
-
-Emergency Controls
-
-No pause mechanism
-No token recovery function
-Impact: Could be problematic in emergency situations
-
-
-Front-Running Risk
-
-Standard ERC20 approvals can be front-run
-No EIP-2612 permit support
-Impact: Potential for transaction ordering exploitation
-
-
-Gas Limit Risk
-
-Operation cleanup could hit block gas limit
-Large operation arrays could make functions unusable
-Impact: Potential DoS under specific conditions
 
 
 
-Low Severity
-
-Rate Limit Configuration
-
-No upper bounds on rate limits
-Could be set to very high values
-Impact: Potential for misconfiguration
 
 
-Event Information
 
-Events could include more details
-Limited historical tracking
-Impact: Reduced transparency
