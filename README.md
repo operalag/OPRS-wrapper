@@ -10,8 +10,7 @@ The ERC20Wrapper contract is designed to wrap 0-decimal and 8-decimal ERC20 toke
 
 8-decimal to 18 decimals was deployed here https://bscscan.com/tx/0xaf55935887309e4e20693e33e5ca5a276e0196d624438d5ecf0cbdfa5b776d93 for the bridged Denario Token https://interchain.axelar.dev/polygon/0xce4D3160705fEBb069617A9AD919753055B56e49  (from https://denario.swiss ) to be used as collateral in the oracle free dollar ecosystem on binance. Mamimal transacations per hour 2, maximal tokens for wrapping per hour 500.
 
-0-decimal to 18 decimal will be deployed for the bridged Operal Equity Token https://invest.operal.solutions https://interchain.axelar.dev/binance/0xeA38b0cD48fA781181FDAa37291e8d6668462261
-
+0-decimal to 18 decimal will be deployed for the bridged Operal Equity Token https://invest.operal.solutions  https://interchain.axelar.dev/polygon/0x4Ab946731717d09366B65069eBC8A2C518793801 on BSC
 
 Key Security Features
 --------------------------------------
