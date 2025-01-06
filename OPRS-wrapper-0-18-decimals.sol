@@ -85,10 +85,9 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Internal function to clean up outdated operations.
+     * @return cleanLength The number of current operations after cleanup
      */
-    function _cleanupOldOperations(Operation[] storage operations) private {
-        require(operations.length <= MAX_OPERATIONS, "Too many operations");
-        
+    function _cleanupOldOperations(Operation[] storage operations) private returns (uint256 cleanLength) {
         uint256 cutoffTime = block.timestamp - WINDOW_SIZE;
         uint256 i = 0;
         while (i < operations.length && operations[i].timestamp < cutoffTime) {
@@ -105,6 +104,11 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
                 operations.pop();
             }
         }
+        
+        // Return current number of operations within the window
+        cleanLength = operations.length;
+        // Check the limit after cleanup
+        require(cleanLength < MAX_OPERATIONS, "Too many operations in window");
     }
 
     /**
@@ -115,6 +119,7 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
         require(amount > 0, "ERC20Wrapper: Amount must be greater than 0");
         require(amount <= maxWrapPerTx, "ERC20Wrapper: Exceeds maximum wrap limit");
 
+        // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(wrapOperations[msg.sender]);
 
         uint256 totalWrapped = _getSlidingWindowVolume(wrapOperations[msg.sender]);
@@ -144,6 +149,7 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
         uint256 underlyingAmount = amount / scalingFactor;
         require(underlyingAmount <= maxUnwrapPerTx, "ERC20Wrapper: Exceeds maximum unwrap limit");
 
+        // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(unwrapOperations[msg.sender]);
 
         uint256 totalUnwrapped = _getSlidingWindowVolume(unwrapOperations[msg.sender]);
