@@ -7,10 +7,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
- * @title ERC20Wrapper
- * @notice A secure wrapper for an ERC20 token with 0 decimals, creating a token with 18 decimals.
+ * @title WrappedOperal
+ * @notice A secure wrapper for the OPRS token (0 decimals), creating a wOPRS token with 18 decimals.
  */
-contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
+contract WrappedOperal is ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // Underlying token and parameters
@@ -38,30 +38,26 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Constructor
-     * @param _underlyingToken Address of the underlying token (must have 0 decimals).
-     * @param _name Name of the wrapped token.
-     * @param _symbol Symbol of the wrapped token.
+     * @param _underlyingToken Address of the OPRS token (must have 0 decimals).
      * @param _maxWrapPerTx Maximum amount of tokens that can be wrapped per transaction.
      * @param _maxUnwrapPerTx Maximum amount of tokens that can be unwrapped per transaction.
      */
     constructor(
         address _underlyingToken,
-        string memory _name,
-        string memory _symbol,
         uint256 _maxWrapPerTx,
         uint256 _maxUnwrapPerTx
-    ) ERC20(_name, _symbol) Ownable(msg.sender) {
-        require(_underlyingToken != address(0), "ERC20Wrapper: Invalid token address");
-        require(_maxWrapPerTx > 0, "ERC20Wrapper: Invalid wrap limit");
-        require(_maxUnwrapPerTx > 0, "ERC20Wrapper: Invalid unwrap limit");
+    ) ERC20("Wrapped Operal", "wOPRS") Ownable(msg.sender) {
+        require(_underlyingToken != address(0), "WrappedOperal: Invalid token address");
+        require(_maxWrapPerTx > 0, "WrappedOperal: Invalid wrap limit");
+        require(_maxUnwrapPerTx > 0, "WrappedOperal: Invalid unwrap limit");
 
         // Validate underlying token interface
-        require(_validateToken(_underlyingToken), "ERC20Wrapper: Invalid ERC20 implementation");
+        require(_validateToken(_underlyingToken), "WrappedOperal: Invalid ERC20 implementation");
 
         underlyingToken = IERC20(_underlyingToken);
 
         // Ensure the token has 0 decimals
-        require(ERC20(_underlyingToken).decimals() == 0, "ERC20Wrapper: Token must have 0 decimals");
+        require(ERC20(_underlyingToken).decimals() == 0, "WrappedOperal: Token must have 0 decimals");
 
         scalingFactor = 1e18; // Scaling factor to convert 0 decimals to 18 decimals
         maxWrapPerTx = _maxWrapPerTx;
@@ -74,8 +70,8 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
      * @param _maxUnwrapPerTx Maximum amount that can be unwrapped per transaction.
      */
     function updateRateLimits(uint256 _maxWrapPerTx, uint256 _maxUnwrapPerTx) external onlyOwner {
-        require(_maxWrapPerTx > 0, "ERC20Wrapper: Invalid wrap limit");
-        require(_maxUnwrapPerTx > 0, "ERC20Wrapper: Invalid unwrap limit");
+        require(_maxWrapPerTx > 0, "WrappedOperal: Invalid wrap limit");
+        require(_maxUnwrapPerTx > 0, "WrappedOperal: Invalid unwrap limit");
 
         maxWrapPerTx = _maxWrapPerTx;
         maxUnwrapPerTx = _maxUnwrapPerTx;
@@ -112,23 +108,23 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Wraps the underlying token into the wrapped token.
-     * @param amount The amount of the underlying token to wrap.
+     * @dev Wraps the OPRS token into wOPRS.
+     * @param amount The amount of OPRS to wrap.
      */
     function wrap(uint256 amount) external nonReentrant {
-        require(amount > 0, "ERC20Wrapper: Amount must be greater than 0");
-        require(amount <= maxWrapPerTx, "ERC20Wrapper: Exceeds maximum wrap limit");
+        require(amount > 0, "WrappedOperal: Amount must be greater than 0");
+        require(amount <= maxWrapPerTx, "WrappedOperal: Exceeds maximum wrap limit");
 
         // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(wrapOperations[msg.sender]);
 
         uint256 totalWrapped = _getSlidingWindowVolume(wrapOperations[msg.sender]);
-        require(totalWrapped + amount <= maxWrapPerTx, "ERC20Wrapper: Rate limit exceeded");
+        require(totalWrapped + amount <= maxWrapPerTx, "WrappedOperal: Rate limit exceeded");
 
         uint256 balanceBefore = underlyingToken.balanceOf(address(this));
         underlyingToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 actualReceived = underlyingToken.balanceOf(address(this)) - balanceBefore;
-        require(actualReceived == amount, "ERC20Wrapper: Transfer amount mismatch");
+        require(actualReceived == amount, "WrappedOperal: Transfer amount mismatch");
 
         wrapOperations[msg.sender].push(Operation(amount, block.timestamp));
 
@@ -139,25 +135,25 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Unwraps the wrapped token into the underlying token.
-     * @param amount The amount of the wrapped token to unwrap (must be in 18 decimals).
+     * @dev Unwraps wOPRS back to OPRS.
+     * @param amount The amount of wOPRS to unwrap (must be in 18 decimals).
      */
     function unwrap(uint256 amount) external nonReentrant {
-        require(amount > 0, "ERC20Wrapper: Amount must be greater than 0");
-        require(amount % scalingFactor == 0, "ERC20Wrapper: Amount must align with scaling factor");
+        require(amount > 0, "WrappedOperal: Amount must be greater than 0");
+        require(amount % scalingFactor == 0, "WrappedOperal: Amount must align with scaling factor");
 
         uint256 underlyingAmount = amount / scalingFactor;
-        require(underlyingAmount <= maxUnwrapPerTx, "ERC20Wrapper: Exceeds maximum unwrap limit");
+        require(underlyingAmount <= maxUnwrapPerTx, "WrappedOperal: Exceeds maximum unwrap limit");
 
         // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(unwrapOperations[msg.sender]);
 
         uint256 totalUnwrapped = _getSlidingWindowVolume(unwrapOperations[msg.sender]);
-        require(totalUnwrapped + underlyingAmount <= maxUnwrapPerTx, "ERC20Wrapper: Rate limit exceeded");
+        require(totalUnwrapped + underlyingAmount <= maxUnwrapPerTx, "WrappedOperal: Rate limit exceeded");
 
         require(
             underlyingToken.balanceOf(address(this)) >= underlyingAmount,
-            "ERC20Wrapper: Insufficient underlying balance"
+            "WrappedOperal: Insufficient underlying balance"
         );
 
         _burn(msg.sender, amount);
@@ -200,7 +196,7 @@ contract ERC20Wrapper is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Returns the scaling factor (always 1e18).
+     * @dev Returns the scaling factor (1e18).
      */
     function getScalingFactor() external view returns (uint256) {
         return scalingFactor;
