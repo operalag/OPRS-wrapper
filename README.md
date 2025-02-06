@@ -12,6 +12,8 @@ DSC Denario Silver Token
 ------
 8-decimal to 18 decimals was deployed here https://bscscan.com/address/0x2f30d9ec8fec8612dbcd54c4c2604ffc972e8a8d for the bridged Denario Token https://interchain.axelar.dev/polygon/0xce4D3160705fEBb069617A9AD919753055B56e49  (from https://denario.swiss ) to be used as collateral in the oracle free dollar ecosystem on binance. Mamimal transacations per hour 2, maximal tokens for wrapping per hour 500.
 
+The interface is accessible here https://wrapper-wizard-denario.lovable.app/ 
+
 OPRS Equity 
 ------
 0-decimal to 18 decimal was be deployed here https://bscscan.com/address/0x8f73610dd60185189657c826df315cc980ca4a0e#code for the bridged Operal Equity Token https://invest.operal.solutions  https://interchain.axelar.dev/polygon/0x4Ab946731717d09366B65069eBC8A2C518793801 on BSC
@@ -23,6 +25,8 @@ DGC Denario Gold Token
 -Axelar Bridge from Polygon to BNB https://interchain.axelar.dev/polygon/0xf7E2D612F1A0ce09ce9fC6FC0b59C7fD5b75042F
 
 -contract has been deployed here https://bscscan.com/address/0x5A3ED6EA3344116A579b11A08E708e093599C13F#code
+
+-wrapper interface is accessible here https://denario-gold-wrapper.lovable.app/ and documented (private repo) here https://github.com/operalag/denario-gold-wrapper
 
 Key Security Features
 --------------------------------------
