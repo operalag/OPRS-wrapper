@@ -1144,8 +1144,8 @@ pragma solidity ^0.8.20;
 
 
 /**
- * @title WrappedDenario
- * @notice A secure wrapper for the DSC token (8 decimals), creating a wDSC token with 18 decimals.
+ * @title WrappedDenario Gold Token
+ * @notice A secure wrapper for the DGC token (8 decimals), creating a wDGC token with 18 decimals.
  */
 contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -1175,7 +1175,7 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
 
     /**
      * @dev Constructor
-     * @param _underlyingToken Address of the DSC token (must have 8 decimals).
+     * @param _underlyingToken Address of the DGC token (must have 8 decimals).
      * @param _maxWrapPerTx Maximum amount of tokens that can be wrapped per transaction.
      * @param _maxUnwrapPerTx Maximum amount of tokens that can be unwrapped per transaction.
      */
@@ -1183,7 +1183,7 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
         address _underlyingToken,
         uint256 _maxWrapPerTx,
         uint256 _maxUnwrapPerTx
-    ) ERC20("Wrapped Denario", "wDSC") Ownable(msg.sender) {
+    ) ERC20("Wrapped Denario Gold", "wDGC") Ownable(msg.sender) {
         require(_underlyingToken != address(0), "WrappedDenario: Invalid token address");
         require(_maxWrapPerTx > 0, "WrappedDenario: Invalid wrap limit");
         require(_maxUnwrapPerTx > 0, "WrappedDenario: Invalid unwrap limit");
@@ -1251,8 +1251,8 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Wraps the DSC token into wDSC.
-     * @param amount The amount of DSC to wrap.
+     * @dev Wraps the DGC token into wDGC.
+     * @param amount The amount of DGC to wrap.
      */
     function wrap(uint256 amount) external nonReentrant {
         require(amount > 0, "WrappedDenario: Amount must be greater than 0");
@@ -1278,8 +1278,8 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Unwraps wDSC back to DSC.
-     * @param amount The amount of wDSC to unwrap (must be in 18 decimals).
+     * @dev Unwraps wDGC back to DGC.
+     * @param amount The amount of wDGC to unwrap (must be in 18 decimals).
      */
     function unwrap(uint256 amount) external nonReentrant {
         require(amount > 0, "WrappedDenario: Amount must be greater than 0");
