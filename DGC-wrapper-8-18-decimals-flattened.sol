@@ -1134,7 +1134,7 @@ abstract contract ReentrancyGuard {
     }
 }
 
-// File: contracts/DGC_wrapper.sol
+// File: contracts/DGC-new.sol
 
 
 pragma solidity ^0.8.20;
@@ -1144,10 +1144,10 @@ pragma solidity ^0.8.20;
 
 
 /**
- * @title WrappedDenario Gold Token
- * @notice A secure wrapper for the DGC token (8 decimals), creating a wDGC token with 18 decimals.
+ * @title WrappedDenarioGoldCoinGoldCoin
+ * @notice A secure wrapper for the DSC token (8 decimals), creating a wDGG (GOLD) token with 18 decimals.
  */
-contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
+contract WrappedDenarioGoldCoinGoldCoin is ERC20, Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // Underlying token and parameters
@@ -1183,18 +1183,18 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
         address _underlyingToken,
         uint256 _maxWrapPerTx,
         uint256 _maxUnwrapPerTx
-    ) ERC20("Wrapped Denario Gold", "wDGC") Ownable(msg.sender) {
-        require(_underlyingToken != address(0), "WrappedDenario: Invalid token address");
-        require(_maxWrapPerTx > 0, "WrappedDenario: Invalid wrap limit");
-        require(_maxUnwrapPerTx > 0, "WrappedDenario: Invalid unwrap limit");
+    ) ERC20("Wrapped Denario Gold Coin", "wDGC") Ownable(msg.sender) {
+        require(_underlyingToken != address(0), "WrappedDenarioGoldCoin: Invalid token address");
+        require(_maxWrapPerTx > 0, "WrappedDenarioGoldCoin: Invalid wrap limit");
+        require(_maxUnwrapPerTx > 0, "WrappedDenarioGoldCoin: Invalid unwrap limit");
 
         // Validate underlying token interface
-        require(_validateToken(_underlyingToken), "WrappedDenario: Invalid ERC20 implementation");
+        require(_validateToken(_underlyingToken), "WrappedDenarioGoldCoin: Invalid ERC20 implementation");
 
         underlyingToken = IERC20(_underlyingToken);
 
         // Ensure the token has 8 decimals
-        require(ERC20(_underlyingToken).decimals() == 8, "WrappedDenario: Token must have 8 decimals");
+        require(ERC20(_underlyingToken).decimals() == 8, "WrappedDenarioGoldCoin: Token must have 8 decimals");
 
         scalingFactor = 1e10; // Scaling factor to convert 8 decimals to 18 decimals
         maxWrapPerTx = _maxWrapPerTx;
@@ -1207,8 +1207,8 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
      * @param _maxUnwrapPerTx Maximum amount that can be unwrapped per transaction.
      */
     function updateRateLimits(uint256 _maxWrapPerTx, uint256 _maxUnwrapPerTx) external onlyOwner {
-        require(_maxWrapPerTx > 0, "WrappedDenario: Invalid wrap limit");
-        require(_maxUnwrapPerTx > 0, "WrappedDenario: Invalid unwrap limit");
+        require(_maxWrapPerTx > 0, "WrappedDenarioGoldCoin: Invalid wrap limit");
+        require(_maxUnwrapPerTx > 0, "WrappedDenarioGoldCoin: Invalid unwrap limit");
 
         maxWrapPerTx = _maxWrapPerTx;
         maxUnwrapPerTx = _maxUnwrapPerTx;
@@ -1251,23 +1251,23 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Wraps the DGC token into wDGC.
-     * @param amount The amount of DGC to wrap.
+     * @dev Wraps the DSC token into wDSC.
+     * @param amount The amount of DSC to wrap.
      */
     function wrap(uint256 amount) external nonReentrant {
-        require(amount > 0, "WrappedDenario: Amount must be greater than 0");
-        require(amount <= maxWrapPerTx, "WrappedDenario: Exceeds maximum wrap limit");
+        require(amount > 0, "WrappedDenarioGoldCoin: Amount must be greater than 0");
+        require(amount <= maxWrapPerTx, "WrappedDenarioGoldCoin: Exceeds maximum wrap limit");
 
         // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(wrapOperations[msg.sender]);
 
         uint256 totalWrapped = _getSlidingWindowVolume(wrapOperations[msg.sender]);
-        require(totalWrapped + amount <= maxWrapPerTx, "WrappedDenario: Rate limit exceeded");
+        require(totalWrapped + amount <= maxWrapPerTx, "WrappedDenarioGoldCoin: Rate limit exceeded");
 
         uint256 balanceBefore = underlyingToken.balanceOf(address(this));
         underlyingToken.safeTransferFrom(msg.sender, address(this), amount);
         uint256 actualReceived = underlyingToken.balanceOf(address(this)) - balanceBefore;
-        require(actualReceived == amount, "WrappedDenario: Transfer amount mismatch");
+        require(actualReceived == amount, "WrappedDenarioGoldCoin: Transfer amount mismatch");
 
         wrapOperations[msg.sender].push(Operation(amount, block.timestamp));
 
@@ -1278,25 +1278,25 @@ contract WrappedDenario is ERC20, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Unwraps wDGC back to DGC.
-     * @param amount The amount of wDGC to unwrap (must be in 18 decimals).
+     * @dev Unwraps wDSC back to DSC.
+     * @param amount The amount of wDSC to unwrap (must be in 18 decimals).
      */
     function unwrap(uint256 amount) external nonReentrant {
-        require(amount > 0, "WrappedDenario: Amount must be greater than 0");
-        require(amount % scalingFactor == 0, "WrappedDenario: Amount must align with scaling factor");
+        require(amount > 0, "WrappedDenarioGoldCoin: Amount must be greater than 0");
+        require(amount % scalingFactor == 0, "WrappedDenarioGoldCoin: Amount must align with scaling factor");
 
         uint256 underlyingAmount = amount / scalingFactor;
-        require(underlyingAmount <= maxUnwrapPerTx, "WrappedDenario: Exceeds maximum unwrap limit");
+        require(underlyingAmount <= maxUnwrapPerTx, "WrappedDenarioGoldCoin: Exceeds maximum unwrap limit");
 
         // Clean up old operations and verify limit after cleanup
         _cleanupOldOperations(unwrapOperations[msg.sender]);
 
         uint256 totalUnwrapped = _getSlidingWindowVolume(unwrapOperations[msg.sender]);
-        require(totalUnwrapped + underlyingAmount <= maxUnwrapPerTx, "WrappedDenario: Rate limit exceeded");
+        require(totalUnwrapped + underlyingAmount <= maxUnwrapPerTx, "WrappedDenarioGoldCoin: Rate limit exceeded");
 
         require(
             underlyingToken.balanceOf(address(this)) >= underlyingAmount,
-            "WrappedDenario: Insufficient underlying balance"
+            "WrappedDenarioGoldCoin: Insufficient underlying balance"
         );
 
         _burn(msg.sender, amount);
