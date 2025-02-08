@@ -24,9 +24,11 @@ DGC Denario Gold Token
 
 -Axelar Bridge from Polygon to BNB https://interchain.axelar.dev/polygon/0xf7E2D612F1A0ce09ce9fC6FC0b59C7fD5b75042F
 
--contract has been deployed here https://bscscan.com/address/0x5A3ED6EA3344116A579b11A08E708e093599C13F#code
+-contract has been deployed here https://bscscan.com/address/0x5A3ED6EA3344116A579b11A08E708e093599C13F#code - with a wrong name, proposed position on OFD has been vetoed
 
--wrapper interface is accessible here https://denario-gold-wrapper.lovable.app/ and documented (private repo) here https://github.com/operalag/denario-gold-wrapper
+-new contract has been deployed here https://bscscan.com/address/0xd9B8CF9f4FD8055c0454389dD6aAB1FDcE2E8781#code
+
+-old wrapper interface is accessible here https://denario-gold-wrapper.lovable.app/ and documented (private repo) here https://github.com/operalag/denario-gold-wrapper
 
 Key Security Features
 --------------------------------------
